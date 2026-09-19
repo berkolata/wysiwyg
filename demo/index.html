@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Simple Editor — Demo</title>
+    <link rel="stylesheet" href="../simple-editor.css" />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 40px 20px 80px;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        background: #f3f4f6;
+        color: #111827;
+      }
+      .wrap {
+        max-width: 860px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 26px;
+        margin: 0 0 6px;
+      }
+      .sub {
+        color: #6b7280;
+        margin: 0 0 20px;
+        font-size: 15px;
+      }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 20px;
+      }
+      .chip {
+        background: #e0e7ff;
+        color: #3730a3;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 4px 10px;
+        border-radius: 999px;
+      }
+      .panel {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 24px;
+      }
+      .panel h2 {
+        font-size: 15px;
+        margin: 0 0 12px;
+        color: #374151;
+      }
+      .actions {
+        display: flex;
+        gap: 10px;
+        margin: 16px 0 24px;
+      }
+      .btn {
+        border: none;
+        background: #2563eb;
+        color: #fff;
+        font-size: 14px;
+        padding: 9px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-family: inherit;
+      }
+      .btn:hover {
+        background: #1d4ed8;
+      }
+      .btn.ghost {
+        background: #fff;
+        color: #374151;
+        border: 1px solid #d1d5db;
+      }
+      .btn.ghost:hover {
+        background: #f9fafb;
+      }
+      pre.output {
+        background: #0f172a;
+        color: #e2e8f0;
+        border-radius: 8px;
+        padding: 14px 16px;
+        font-size: 12.5px;
+        line-height: 1.6;
+        overflow: auto;
+        max-height: 320px;
+        margin: 0;
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      pre.usage {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 14px 16px;
+        font-size: 13px;
+        line-height: 1.7;
+        overflow: auto;
+        margin: 0;
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      }
+      .note {
+        font-size: 13px;
+        color: #6b7280;
+        margin: 10px 0 0;
+      }
+      code {
+        background: #eef2ff;
+        padding: 1px 5px;
+        border-radius: 4px;
+        font-size: 12.5px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Simple Editor</h1>
+      <p class="sub">
+        A tiny, dependency-free WYSIWYG HTML editor. Plain HTML + CSS + JS — no
+        framework, no build step.
+      </p>
+
+      <div class="chips">
+        <span class="chip">~1 file</span>
+        <span class="chip">0 dependencies</span>
+        <span class="chip">MIT</span>
+        <span class="chip">sanitized output</span>
+        <span class="chip">works with &lt;textarea&gt;</span>
+      </div>
+
+      <!--
+      The editor target is a <textarea>, so the demo works exactly like a
+      PHP panel: give the textarea a name, submit the form, read it in PHP.
+      The editor hides the textarea and keeps its value in sync.
+    -->
+      <textarea id="content" name="content">
+<h2>Welcome to Simple Editor!</h2>
+<p>This is a <strong>tiny</strong>, <em>dependency-free</em> editor. Try the toolbar: <u>underline</u>, <span style="color: #2563eb">colored text</span>, <span style="background-color: #fef08a">highlights</span> and <a href="https://example.com">links</a>.</p>
+<ul>
+  <li>Headings, lists, tables and images</li>
+  <li>Paste from Word is cleaned automatically</li>
+  <li>HTML source view with sanitize-on-apply</li>
+</ul>
+<table>
+  <tbody>
+    <tr>
+      <th>Feature</th>
+      <th>Status</th>
+    </tr>
+    <tr>
+      <td>Zero dependencies</td>
+      <td>yes</td>
+    </tr>
+  </tbody>
+</table></textarea
+      >
+
+      <div class="actions">
+        <button class="btn ghost" id="btn-set">
+          Load sample via setHTML()
+        </button>
+        <button class="btn ghost" id="btn-focus">focus()</button>
+      </div>
+
+      <div class="panel">
+        <h2>Live output — editor.getHTML() (updates on every change)</h2>
+        <pre class="output" id="output"></pre>
+        <p class="note">
+          Output is sanitized (allowlist) and normalized:
+          <code>&lt;b&gt; → &lt;strong&gt;</code>,
+          <code>&lt;font color&gt; → &lt;span style&gt;</code>, no scripts, no
+          inline event handlers.
+        </p>
+        <p class="note">
+          Tables always span the full width. Drag a column border inside a table
+          to resize it — widths are saved as percentages on
+          <code>&lt;col&gt;</code> elements, so tables stay responsive on
+          mobile.
+        </p>
+      </div>
+
+      <div class="panel">
+        <h2>Usage</h2>
+        <pre class="usage">
+&lt;!-- 1. include the two files --&gt;
+&lt;link rel="stylesheet" href="simple-editor.css"&gt;
+&lt;script src="simple-editor.js"&gt;&lt;/script&gt;
+
+&lt;!-- 2. a textarea (kept in sync, works with plain form POST) --&gt;
+&lt;textarea name="content"&gt;&lt;/textarea&gt;
+
+&lt;!-- 3. turn it into an editor --&gt;
+&lt;script&gt;
+  var editor = SimpleEditor.create("textarea[name=content]", {
+    placeholder: "Write something...",
+    language: "en",          // "tr" also available
+    uploadUrl: "/upload.php" // optional: POST multipart "file",
+  });                        // expects {"url": "..."} or a plain URL string
+&lt;/script&gt;</pre
+        >
+        <p class="note">
+          API: <code>getHTML()</code>, <code>setHTML(html)</code>,
+          <code>onChange(cb)</code>, <code>focus()</code>,
+          <code>destroy()</code>. Shortcuts: Ctrl+B / I / U, Ctrl+K (link),
+          Ctrl+Z / Y.
+        </p>
+        <h2>CSS for rendered pages (e.g. your PHP template)</h2>
+        <pre class="usage">
+/* saved content — same responsive table rules as inside the editor */
+.content table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+.content td, .content th { border: 1px solid #d1d5db; padding: 6px 10px; overflow-wrap: break-word; }
+.content th { background: #f9fafb; }
+
+@media (max-width: 640px) {
+  .content td, .content th { padding: 4px 6px; }
+}</pre
+        >
+      </div>
+    </div>
+
+    <script src="../simple-editor.js"></script>
+    <script>
+      var editor = SimpleEditor.create("#content", {
+        placeholder: "Write something...",
+        language: "en",
+        // uploadUrl: "/upload.php"
+      });
+
+      var output = document.getElementById("output");
+      function sync() {
+        var html = editor.getHTML();
+        output.textContent = html || " ";
+      }
+      editor.onChange(sync);
+      sync();
+
+      document.getElementById("btn-set").addEventListener("click", function () {
+        editor.setHTML(
+          "<h2>Reset by setHTML()</h2><p>Content was replaced from JavaScript. Try <strong>typing</strong>, then hit undo.</p>",
+        );
+      });
+      document
+        .getElementById("btn-focus")
+        .addEventListener("click", function () {
+          editor.focus();
+        });
+    </script>
+  </body>
+</html>

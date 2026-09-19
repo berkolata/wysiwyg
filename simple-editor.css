@@ -1,0 +1,603 @@
+/*!
+ * Simple Editor — a tiny, dependency-free WYSIWYG HTML editor.
+ * MIT License.
+ */
+
+/* ------------------------------------------------------------------ */
+/* Root / shell                                                        */
+/* ------------------------------------------------------------------ */
+
+/* Variables live on .se-root AND .se-overlay: the modal overlay is
+   mounted on <body> — outside the editor — so it cannot inherit the
+   editor's custom properties on its own. */
+.se-root,
+.se-overlay {
+  --se-border: #d1d5db;
+  --se-border-soft: #e5e7eb;
+  --se-bg: #ffffff;
+  --se-bg-soft: #f9fafb;
+  --se-fg: #111827;
+  --se-fg-muted: #6b7280;
+  --se-accent: #2563eb;
+  --se-accent-soft: #dbeafe;
+  --se-danger: #dc2626;
+
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--se-border);
+  border-radius: 8px;
+  background: var(--se-bg);
+  color: var(--se-fg);
+  font-family: inherit;
+}
+
+.se-root:focus-within {
+  border-color: var(--se-accent);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.se-root [hidden] {
+  display: none !important;
+}
+.se-hidden {
+  display: none !important;
+}
+
+/* ------------------------------------------------------------------ */
+/* Toolbar                                                             */
+/* ------------------------------------------------------------------ */
+
+.se-toolbar {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 6px;
+  border-bottom: 1px solid var(--se-border-soft);
+  background: var(--se-bg-soft);
+  border-radius: 8px 8px 0 0;
+}
+
+.se-btn {
+  height: 30px;
+  min-width: 30px;
+  padding: 0 6px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  color: #374151;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 14px;
+  line-height: 1;
+  font-family: inherit;
+}
+
+.se-btn:hover {
+  background: var(--se-border-soft);
+}
+.se-btn.se-active {
+  background: var(--se-accent-soft);
+  color: #1d4ed8;
+}
+
+.se-btn svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+  pointer-events: none;
+}
+
+.se-sep {
+  width: 1px;
+  height: 22px;
+  background: var(--se-border);
+  margin: 0 4px;
+  flex: none;
+}
+
+/* B / I / U glyphs */
+.se-glyph {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 15px;
+}
+.se-glyph-b {
+  font-weight: 800;
+}
+.se-glyph-i {
+  font-style: italic;
+}
+.se-glyph-u {
+  text-decoration: underline;
+}
+
+/* Block format dropdown trigger */
+.se-block-btn {
+  width: auto;
+  padding: 0 8px;
+  font-size: 13px;
+}
+.se-block-label {
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.se-block-btn .se-caret svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Dropdown panels */
+.se-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  z-index: 200;
+  background: var(--se-bg);
+  border: 1px solid var(--se-border-soft);
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(17, 24, 39, 0.14);
+  padding: 6px;
+}
+
+.se-panel-block {
+  min-width: 160px;
+}
+
+.se-panel-block button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--se-fg);
+  font-family: inherit;
+}
+
+.se-panel-block button:hover {
+  background: #f3f4f6;
+}
+.se-panel-block button.se-active {
+  background: var(--se-accent-soft);
+  color: #1d4ed8;
+}
+.se-opt-h2 {
+  font-size: 16px;
+  font-weight: 700;
+}
+.se-opt-h3 {
+  font-size: 15px;
+  font-weight: 700;
+}
+.se-opt-h4 {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* Color palette */
+.se-colors {
+  display: grid;
+  grid-template-columns: repeat(6, 22px);
+  gap: 4px;
+}
+
+.se-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  padding: 0;
+}
+
+.se-swatch:hover {
+  transform: scale(1.12);
+  border-color: var(--se-accent);
+}
+
+.se-custom {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid #f3f4f6;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--se-fg-muted);
+}
+
+.se-custom input[type="color"] {
+  width: 38px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--se-border);
+  border-radius: 4px;
+  background: var(--se-bg);
+  cursor: pointer;
+}
+
+/* ------------------------------------------------------------------ */
+/* Editing area                                                        */
+/* ------------------------------------------------------------------ */
+
+.se-body {
+  position: relative;
+}
+
+.se-content {
+  position: relative;
+  min-height: 200px;
+  max-height: 60vh;
+  overflow: auto;
+  padding: 14px 16px;
+  outline: none;
+  font-size: 15px;
+  line-height: 1.65;
+  word-wrap: break-word;
+}
+
+.se-content:focus {
+  outline: none;
+}
+
+.se-content.se-placeholder::before {
+  content: attr(data-placeholder);
+  position: absolute;
+  left: 16px;
+  top: 14px;
+  color: #9ca3af;
+  pointer-events: none;
+  font-size: 15px;
+}
+
+/* Typography inside the edited document */
+.se-content h2 {
+  font-size: 1.5em;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0.8em 0 0.4em;
+}
+.se-content h3 {
+  font-size: 1.25em;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0.8em 0 0.4em;
+}
+.se-content h4 {
+  font-size: 1.1em;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0.8em 0 0.4em;
+}
+.se-content h2:first-child,
+.se-content h3:first-child,
+.se-content h4:first-child {
+  margin-top: 0;
+}
+.se-content p {
+  margin: 0 0 0.75em;
+}
+.se-content p:last-child {
+  margin-bottom: 0;
+}
+
+.se-content ul,
+.se-content ol {
+  margin: 0 0 0.75em;
+  padding-left: 1.6em;
+}
+.se-content li {
+  margin: 0.15em 0;
+}
+
+.se-content a {
+  color: var(--se-accent);
+}
+.se-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Tables always fill the available width. Fixed layout keeps column
+   proportions exact — and is what makes the draggable column borders
+   (see simple-editor.js) track the pointer 1:1. */
+.se-content table {
+  border-collapse: collapse;
+  margin: 0.5em 0;
+  width: 100%;
+  table-layout: fixed;
+}
+.se-content td,
+.se-content th {
+  border: 1px solid var(--se-border);
+  padding: 6px 10px;
+  vertical-align: top;
+  overflow-wrap: break-word;
+}
+.se-content th {
+  background: var(--se-bg-soft);
+  font-weight: 700;
+}
+
+/* Responsive tables: column widths are stored as percentages on <col>
+   elements, so a table never grows wider than its container — on small
+   screens the cells simply tighten up instead of breaking the layout. */
+@media (max-width: 640px) {
+  .se-content table {
+    width: 100%;
+  }
+  .se-content td,
+  .se-content th {
+    padding: 4px 6px;
+  }
+}
+
+.se-content blockquote {
+  border-left: 3px solid var(--se-border);
+  margin: 0.5em 0;
+  padding: 0.2em 0 0.2em 1em;
+  color: #4b5563;
+}
+
+.se-content hr {
+  border: none;
+  border-top: 1px solid var(--se-border-soft);
+  margin: 1em 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* HTML source mode                                                    */
+/* ------------------------------------------------------------------ */
+
+.se-source-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.se-source-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: var(--se-bg-soft);
+  border-bottom: 1px solid var(--se-border-soft);
+}
+
+.se-source-bar .se-tag {
+  margin-right: auto;
+  color: var(--se-fg-muted);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+}
+
+.se-mini-btn {
+  border: 1px solid var(--se-border);
+  background: var(--se-bg);
+  color: #374151;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.se-mini-btn:hover {
+  background: var(--se-border-soft);
+}
+
+.se-mini-btn-primary {
+  border: none;
+  background: var(--se-accent);
+  color: #fff;
+}
+
+.se-mini-btn-primary:hover {
+  background: #1d4ed8;
+}
+
+.se-source {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 200px;
+  border: none;
+  outline: none;
+  padding: 12px 14px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  resize: vertical;
+  color: var(--se-fg);
+  background: var(--se-bg);
+}
+
+/* While in source mode, disable the rest of the toolbar */
+.se-root.se-source-mode .se-toolbar .se-btn:not(.se-btn-source) {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Modals                                                              */
+/* ------------------------------------------------------------------ */
+
+.se-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(17, 24, 39, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12vh 16px 16px;
+}
+
+.se-modal {
+  background: var(--se-bg);
+  border-radius: 10px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  width: 100%;
+  max-width: 400px;
+  overflow: hidden;
+}
+
+.se-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f3f4f6;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.se-modal-x {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--se-fg-muted);
+  font-size: 20px;
+  line-height: 1;
+  padding: 2px 6px;
+}
+
+.se-modal-x:hover {
+  color: var(--se-fg);
+}
+
+.se-modal-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.se-field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4b5563;
+  margin-bottom: 4px;
+}
+
+.se-field input[type="text"],
+.se-field input[type="url"],
+.se-field input[type="number"] {
+  width: 100%;
+  box-sizing: border-box;
+  border: 2px solid var(--se-border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 14px;
+  outline: none;
+  font-family: inherit;
+  background: var(--se-bg);
+  color: var(--se-fg);
+}
+
+.se-field input:focus {
+  border-color: var(--se-accent);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.se-row {
+  display: flex;
+  gap: 12px;
+}
+.se-row .se-field {
+  flex: 1;
+}
+
+.se-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #374151;
+  cursor: pointer;
+}
+
+.se-modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid #f3f4f6;
+  background: var(--se-bg-soft);
+}
+
+.se-btn-primary {
+  background: var(--se-accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.se-btn-primary:hover {
+  background: #1d4ed8;
+}
+.se-btn-primary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.se-btn-ghost {
+  background: transparent;
+  color: #374151;
+  border: 1px solid var(--se-border);
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.se-btn-ghost:hover {
+  background: var(--se-border-soft);
+}
+
+.se-error {
+  color: var(--se-danger);
+  font-size: 13px;
+  min-height: 16px;
+  margin: 0;
+}
+.se-hint {
+  font-size: 12px;
+  color: var(--se-fg-muted);
+  margin: 0;
+}
+
+.se-file {
+  display: block;
+  border: 1px dashed var(--se-border);
+  border-radius: 6px;
+  padding: 10px;
+  text-align: center;
+  color: var(--se-fg-muted);
+  cursor: pointer;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.se-file:hover {
+  border-color: var(--se-accent);
+  color: var(--se-accent);
+}
+.se-file input[type="file"] {
+  display: none;
+}
