@@ -1,4 +1,4 @@
-# Simple WYSIWYG Editor
+# Simple Editor
 
 A tiny, dependency-free WYSIWYG HTML editor for the web.
 
