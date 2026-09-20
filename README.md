@@ -1,25 +1,26 @@
-# Simple Editor - WYSIWYG Simple-Editor Free Unlimited
+# Simple Editor
 
 A tiny, dependency-free WYSIWYG HTML editor for the web.
 
 Plain HTML + CSS + JavaScript. No framework, no build step, no npm install, no transpiling — two files you drop into any page.
 
 ```
-simple-editor.js   ~63 KB source / ~15 KB gzipped
-simple-editor.css  ~12 KB source /  ~3 KB gzipped
+simple-editor.js   ~83 KB source / ~20 KB gzipped
+simple-editor.css  ~14 KB source / ~3.5 KB gzipped
 ```
 
 Built for the case where TinyMCE/CKEditor is overkill: admin panels, CMS content fields, PHP form pages — "my customer writes a heading, some text, drops in an image and a table, and I save clean HTML."
 
 ## Features
 
-- Headings (H2/H3/H4) and paragraph format, with toggle-back
+- Headings (H1–H4) and paragraph format, with toggle-back
 - Bold, italic, underline
-- Bulleted and numbered lists, with Tab / Shift+Tab nesting
-- Text color and background color (palette + custom picker)
-- Links (insert, edit text, open-in-new-tab, remove) with URL validation
-- Images via URL, file upload, paste, or drag-and-drop
+- Bulleted and numbered lists, with Tab / Shift+Tab nesting — markers always render inside the editor, even when the host page's CSS reset sets `list-style: none`
+- Text color and background color (palette + custom picker) — palettes reorder by usage and remember custom picks in the browser
+- Links (insert, edit text, open-in-new-tab, remove) with URL validation — formatting on the linked text is preserved
+- Images via URL, file upload, paste, or drag-and-drop — right-click an image to set its width/height (`px` or `%`, e.g. `100%`) and float it left / right or center it
 - Tables with header row, **draggable column resizing**, and responsive 100%-width layout
+- Horizontal rule insertion
 - HTML source view (visual ↔ code toggle) with pretty-printed output
 - Undo / redo on the browser's native stack
 - Word-paste cleaning and allowlist sanitization of everything
@@ -92,12 +93,15 @@ SimpleEditor.create(target, {
 
 ### Keyboard shortcuts
 
-| Keys                            | Action                                       |
-| ------------------------------- | -------------------------------------------- |
-| Ctrl/⌘ + B / I / U              | Bold / italic / underline                    |
-| Ctrl/⌘ + K                      | Insert link                                  |
-| Tab / Shift+Tab (inside a list) | Indent / outdent the list item (nests lists) |
-| Ctrl/⌘ + Z / Y                  | Undo / redo                                  |
+| Keys                                | Action                                       |
+| ----------------------------------- | -------------------------------------------- |
+| Ctrl/⌘ + B / I / U                  | Bold / italic / underline                    |
+| Ctrl/⌘ + K                          | Insert link                                  |
+| Ctrl/⌘ + Alt + 1 / 2 / 3 / 4        | Heading 1 / 2 / 3 / 4                        |
+| Ctrl/⌘ + Alt + 0                    | Back to paragraph                            |
+| Tab / Shift+Tab (inside a list)     | Indent / outdent the list item (nests lists) |
+| Ctrl/⌘ + Z / Y                      | Undo / redo                                  |
+| Right-click / double-click an image | Image size & alignment menu                  |
 
 ## Tables
 
@@ -140,6 +144,14 @@ SimpleEditor.create(target, {
   .content th {
     padding: 4px 6px;
   }
+}
+
+/* list markers — add these too if your site ships a CSS reset */
+.content ul {
+  list-style-type: disc;
+}
+.content ol {
+  list-style-type: decimal;
 }
 ```
 
@@ -190,6 +202,32 @@ Accepted response shapes: `{"url": "..."}` (also `src`, `file`, or `data.url` ke
 
 The sanitizer only accepts `data:image/png|jpeg|gif|webp|avif;base64,...` URLs, so a hostile `data:text/html` payload never survives.
 
+### Sizing and alignment
+
+Right-click (or double-click) any image in the editing area to open the image menu:
+
+- **Width / height** — enter values like `320`, `100%`, or leave a field empty for the natural size (`auto`). Plain numbers mean pixels. A width without a height keeps the aspect ratio (`height: auto` is written along with it), and `100%` gives a full-width image.
+- **Alignment** — float left, float right (text wraps around the image), center (block with auto margins), or inline (no alignment at all).
+
+Alignment buttons apply immediately and the menu stays open, so you can flip between options; `Apply` commits the size fields. `Enter` applies, `Esc` or an outside click closes.
+
+The styles are written onto the `<img>` tag itself and survive the sanitizer:
+
+```html
+<img
+  src="..."
+  alt=""
+  style="width: 100%; height: auto; display: block; margin-left: auto; margin-right: auto"
+/>
+<img
+  src="..."
+  alt=""
+  style="width: 320px; height: auto; float: left; margin: 0 1em 1em 0"
+/>
+```
+
+Like column resizes, size/alignment changes are direct DOM edits — they are not on the native undo stack.
+
 ## Security: how content is cleaned
 
 Everything that enters the editor — `setHTML()`, paste, drop, source-view apply, and `getHTML()` output — passes through the same allowlist pipeline:
@@ -200,7 +238,7 @@ Everything that enters the editor — `setHTML()`, paste, drop, source-view appl
 4. **Unwrap** unknown-but-harmless elements (tag removed, children kept).
 5. **Filter attributes** to a per-tag allowlist, and validate the survivors:
    - `href`/`src`: only `http`, `https`, `mailto`, `tel`, relative URLs, and (for images) the image `data:` formats above — `javascript:` URLs are removed.
-   - `style`: only `color`/`background-color` with real color values (plus `width` on `<col>` set by the resizer).
+   - `style`: only `color`/`background-color` with real color values, plus `width` on `<col>` (resizer) and, on `<img>`, the image-menu styles — `width`/`height` in px/%/`auto`, `float: left|right|none`, `display: block`, `auto` side margins, and non-negative `margin` lengths.
    - `target`: only `_blank`, which also gets `rel="noopener noreferrer"` forced.
    - `colspan`/`rowspan`: 1–99 integers only.
 6. **Remove** comments and whitespace-only nodes inside structural containers.
@@ -218,7 +256,7 @@ The `</>` button (or the "HTML source" title) toggles between visual editing and
 
 ## Theming
 
-All colors are CSS variables declared on `.se-root` (and `.se-overlay`, since modals mount on `<body>` and sit outside the editor's cascade):
+All colors are CSS variables declared on `.se-root` (and `.se-overlay` / `.se-ctxmenu`, since modals and the image context menu mount on `<body>` and sit outside the editor's cascade):
 
 ```css
 .se-root {
@@ -252,14 +290,17 @@ SimpleEditor.create("#content", {
 
 ## How it works (architecture notes)
 
-If you want to hack on it, the mental model in ~2,000 lines of vanilla JS:
+If you want to hack on it, the mental model in ~2,600 lines of vanilla JS:
 
 - **Editing core** — a `contenteditable` div driven by `document.execCommand()`. `execCommand` is officially deprecated but universally implemented and perfectly adequate for this feature set; the real work is everything _around_ it.
 - **Selection preservation** — toolbar buttons `preventDefault()` on `mousedown` so focus never leaves the editing area; modals save the DOM range on open and restore it before applying. This is the #1 homemade-editor bug and the reason toolbar clicks just work here.
-- **Undo coherence** — every programmatic change (links, tables, images, pastes, `setHTML({preserveUndo:true})`) goes through `execCommand("insertHTML")` instead of direct DOM mutation, so the browser's native undo stack stays consistent. Direct mutations (column resizing) are the known exception.
+- **Undo coherence** — every programmatic change (links, tables, images, pastes, `setHTML({preserveUndo:true})`) goes through `execCommand` (`insertHTML` / `createLink`) instead of direct DOM mutation, so the browser's native undo stack stays consistent. Direct mutations (column resizing, image size/alignment, patching `target`/`rel` onto a fresh link) are the known exceptions.
+- **Link formatting** — linking already-formatted text (bold, underline, colors) goes through `createLink`, which wraps the selection in place so its markup survives, and splits partial selections correctly. The plain-text `insertHTML` path only handles the changed-text or empty-selection cases.
 - **Sanitizer** — a single `cleanTree()` pass (normalize → drop → unwrap → attribute filter) reused by every input and output path, including the standalone `SimpleEditor.sanitize()`.
 - **Source mode** — a custom serializer produces indented HTML for the textarea; Apply round-trips it through the sanitizer.
+- **Color memory** — color panels rebuild every time they open: remembered colors lead (most used, then most recent), the untouched base palette follows. Colors picked with the OS picker join the swatches so they can be reused; the list is stored per panel in `localStorage` under `simple-editor:color-usage` (max 6 custom colors) and degrades to page memory when storage is blocked.
 - **Column resizing** — mousemove hit-testing against first-row cell borders; widths stored on `<colgroup>`/`<col>` (sanitizer allows `width` there and nowhere else); percentages on commit keep tables responsive.
+- **Image menu** — `contextmenu`/`dblclick` hit-testing against `<img>`; size and float/center styles are written inline on the image and validated by the same style filter that guards pasted markup. The menu mounts on `<body>` (like modals) with the instance's theme copied onto it.
 - **Styling** — BEM-ish `se-` class prefix, CSS variables for theme, no `!important` except the two `[hidden]` guards. Editor chrome is scoped to `.se-root`; document typography is scoped to `.se-content` so it never leaks into your page.
 
 ## Browser support
@@ -271,9 +312,10 @@ Modern evergreen browsers: Chrome, Edge, Firefox, Safari (desktop and mobile). I
 Current, deliberate limits:
 
 - No table row/column add/remove UI yet (top roadmap item)
-- Column resize is mouse-only and not undoable
-- No nested lists controls, alignment buttons, or find/replace
+- Column resize and image size/alignment changes are mouse-only and not undoable
+- No nested list controls, text-alignment buttons, or find/replace
 - Single-level undo of column resizes
+- Color memory is browser-local (`localStorage`) — never sent to the server, and it does not follow the user across devices
 
 ## Project layout
 
