@@ -148,6 +148,7 @@
 <ul>
   <li>Headings, lists, tables and images</li>
   <li>Paste from Word is cleaned automatically</li>
+  <li>Bullet &amp; numbered lists — Tab / Shift+Tab nests items</li>
   <li>HTML source view with sanitize-on-apply</li>
 </ul>
 <table>
@@ -186,6 +187,11 @@
           <code>&lt;col&gt;</code> elements, so tables stay responsive on
           mobile.
         </p>
+        <p class="note">
+          Insert an image, then right-click (or double-click) it: set width /
+          height — plain numbers are pixels, <code>100%</code> works too — and
+          float it left / right or center it.
+        </p>
       </div>
 
       <div class="panel">
@@ -211,7 +217,10 @@
           API: <code>getHTML()</code>, <code>setHTML(html)</code>,
           <code>onChange(cb)</code>, <code>focus()</code>,
           <code>destroy()</code>. Shortcuts: Ctrl+B / I / U, Ctrl+K (link),
-          Ctrl+Z / Y.
+          Ctrl+Z / Y, Ctrl+Alt+1-4 for headings (Ctrl+Alt+0 back to paragraph).
+          Inside lists: Tab / Shift+Tab nests items. Color palettes remember
+          your picks — most-used colors bubble to the front and custom picker
+          colors are kept as swatches (localStorage).
         </p>
         <h2>CSS for rendered pages (e.g. your PHP template)</h2>
         <pre class="usage">
@@ -222,7 +231,11 @@
 
 @media (max-width: 640px) {
   .content td, .content th { padding: 4px 6px; }
-}</pre
+}
+
+/* list markers — add these too if your site ships a CSS reset */
+.content ul { list-style-type: disc; }
+.content ol { list-style-type: decimal; }</pre
         >
       </div>
     </div>
