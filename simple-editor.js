@@ -21,7 +21,7 @@
 (function (global) {
   "use strict";
 
-  var VERSION = "1.0.3";
+  var VERSION = "1.0.8";
 
   // Custom properties that must be copied from the editor root onto
   // body-level modals — they are mounted outside .se-root and therefore
@@ -46,6 +46,7 @@
     en: {
       blockFormat: "Paragraph format",
       paragraph: "Paragraph",
+      heading1: "Heading 1",
       heading2: "Heading 2",
       heading3: "Heading 3",
       heading4: "Heading 4",
@@ -60,7 +61,17 @@
       link: "Insert link (Ctrl+K)",
       unlink: "Remove link",
       image: "Insert image",
+      imageProps: "Image properties",
+      imageWidth: "Width",
+      imageHeight: "Height",
+      imageSizeHint: "Values in px or % (e.g. 100%); empty = auto",
+      invalidSize: "Width/height must look like 320 or 100% — or be empty.",
+      alignLeft: "Float left",
+      alignCenter: "Center",
+      alignRight: "Float right",
+      alignInline: "Inline (remove alignment)",
       table: "Insert table",
+      horizontalRule: "Horizontal rule",
       source: "HTML source",
       undo: "Undo (Ctrl+Z)",
       redo: "Redo (Ctrl+Y)",
@@ -88,6 +99,7 @@
     tr: {
       blockFormat: "Paragraf biçimi",
       paragraph: "Paragraf",
+      heading1: "Başlık 1",
       heading2: "Başlık 2",
       heading3: "Başlık 3",
       heading4: "Başlık 4",
@@ -102,7 +114,18 @@
       link: "Bağlantı ekle (Ctrl+K)",
       unlink: "Bağlantıyı kaldır",
       image: "Resim ekle",
+      imageProps: "Resim özellikleri",
+      imageWidth: "Genişlik",
+      imageHeight: "Yükseklik",
+      imageSizeHint: "Değerler px veya % (örn. 100%); boş = otomatik",
+      invalidSize:
+        "Genişlik/yükseklik 320 ya da 100% biçiminde olmalı — ya da boş.",
+      alignLeft: "Sola yasla",
+      alignCenter: "Ortala",
+      alignRight: "Sağa yasla",
+      alignInline: "Satır içi (hizalamayı kaldır)",
       table: "Tablo ekle",
+      horizontalRule: "Yatay çizgi",
       source: "HTML kaynağı",
       undo: "Geri al (Ctrl+Z)",
       redo: "Yinele (Ctrl+Y)",
@@ -174,6 +197,7 @@
 
   var ALLOWED_TAGS = {
     P: [],
+    H1: [],
     H2: [],
     H3: [],
     H4: [],
@@ -185,7 +209,7 @@
     S: [],
     SPAN: ["style"],
     A: ["href", "title", "target", "rel"],
-    IMG: ["src", "alt", "title"],
+    IMG: ["src", "alt", "title", "style"],
     UL: [],
     OL: [],
     LI: [],
@@ -263,9 +287,16 @@
     return s; // relative URL, #anchor or protocol-relative
   }
 
-  // Keeps only color / background-color with sane values; <col> elements
-  // may additionally carry a width (px or %) set by the resize handles.
-  function filterStyle(styleStr, allowWidth) {
+  // Margin shorthand the image menu writes next to floats: 1–4
+  // non-negative lengths (px, em, %) — e.g. "0 1em 1em 0".
+  var IMG_MARGIN_RE =
+    /^(0|\d+(\.\d+)?(px|em|%))( (0|\d+(\.\d+)?(px|em|%))){0,3}$/;
+
+  // Keeps only color / background-color with sane values. <col> elements
+  // may additionally carry a width (px or %) set by the resize handles;
+  // <img> elements may carry the size/alignment styles produced by the
+  // image context menu (width, height, float, display, margins).
+  function filterStyle(styleStr, opts) {
     if (!styleStr) return "";
     var out = [];
     String(styleStr)
@@ -280,7 +311,28 @@
           COLOR_RE.test(val)
         ) {
           out.push(prop + ": " + val);
-        } else if (allowWidth && prop === "width" && WIDTH_RE.test(val)) {
+        } else if (opts.img) {
+          if (
+            (prop === "width" || prop === "height") &&
+            (val === "auto" || WIDTH_RE.test(val))
+          ) {
+            out.push(prop + ": " + val);
+          } else if (
+            prop === "float" &&
+            (val === "left" || val === "right" || val === "none")
+          ) {
+            out.push(prop + ": " + val);
+          } else if (prop === "display" && val === "block") {
+            out.push(prop + ": " + val);
+          } else if (
+            (prop === "margin-left" || prop === "margin-right") &&
+            val === "auto"
+          ) {
+            out.push(prop + ": " + val);
+          } else if (prop === "margin" && IMG_MARGIN_RE.test(val)) {
+            out.push(prop + ": " + val);
+          }
+        } else if (opts.width && prop === "width" && WIDTH_RE.test(val)) {
           out.push(prop + ": " + val);
         }
       });
@@ -405,7 +457,10 @@
             if (s === null) kill = true;
             else el.setAttribute(a.name, s);
           } else if (name === "style") {
-            var st = filterStyle(a.value, tag === "COL");
+            var st = filterStyle(a.value, {
+              width: tag === "COL",
+              img: tag === "IMG",
+            });
             if (st) el.setAttribute("style", st);
             else el.removeAttribute("style");
           } else if (name === "target") {
@@ -458,6 +513,7 @@
 
   var BLOCK_SET = {
     p: 1,
+    h1: 1,
     h2: 1,
     h3: 1,
     h4: 1,
@@ -588,6 +644,7 @@
         '<line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/>' +
         '<line x1="12" y1="3" x2="12" y2="21"/>',
     ),
+    hr: svg('<line x1="4" y1="12" x2="20" y2="12" stroke-width="3"/>'),
     code: svg(
       '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>',
     ),
@@ -602,6 +659,24 @@
         '<path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/>',
     ),
     caret: svg('<polyline points="6 9 12 15 18 9"/>'),
+    imgLeft: svg(
+      '<rect x="3" y="5" width="9" height="9" rx="1"/>' +
+        '<line x1="15" y1="7" x2="21" y2="7"/><line x1="15" y1="11" x2="21" y2="11"/>' +
+        '<line x1="3" y1="18" x2="21" y2="18"/>',
+    ),
+    imgCenter: svg(
+      '<line x1="4" y1="3" x2="20" y2="3"/><rect x="6" y="6" width="12" height="10" rx="1"/>' +
+        '<line x1="4" y1="19" x2="20" y2="19"/>',
+    ),
+    imgRight: svg(
+      '<rect x="12" y="5" width="9" height="9" rx="1"/>' +
+        '<line x1="3" y1="7" x2="9" y2="7"/><line x1="3" y1="11" x2="9" y2="11"/>' +
+        '<line x1="3" y1="18" x2="21" y2="18"/>',
+    ),
+    imgInline: svg(
+      '<line x1="3" y1="5" x2="21" y2="5"/><rect x="9" y="9" width="6" height="6" rx="1"/>' +
+        '<line x1="3" y1="18" x2="21" y2="18"/>',
+    ),
   };
 
   var PALETTE = [
@@ -637,6 +712,139 @@
     "#f5d0fe",
   ];
 
+  // Membership test for base palette colors — anything else stored in the
+  // color memory is a custom color picked with the OS picker.
+  var PALETTE_SET = {};
+  PALETTE.forEach(function (color) {
+    PALETTE_SET[color] = 1;
+  });
+
+  // ------------------------------------------------------------------
+  // Color usage memory
+  //
+  // Both color panels reorder themselves over time: every color the user
+  // applies — from the palette or from the custom picker — is remembered
+  // in localStorage and migrates to the front (most used first, then most
+  // recent). Custom picker colors are kept as extra swatches so they can
+  // be reused without opening the OS picker again. When localStorage is
+  // unavailable (private mode, blocked storage) the memory degrades to a
+  // per-page in-memory cache.
+  // ------------------------------------------------------------------
+
+  var COLOR_MEM_KEY = "simple-editor:color-usage";
+  var COLOR_HEX_RE = /^#[0-9a-f]{6}$/;
+  var MAX_CUSTOM_COLORS = 6;
+
+  var colorMemory = (function () {
+    var cache = null;
+    var storageOk = true;
+
+    function load() {
+      if (cache) return cache;
+      cache = { foreColor: [], hiliteColor: [] };
+      var raw = null;
+      try {
+        raw = global.localStorage.getItem(COLOR_MEM_KEY);
+      } catch (e) {
+        storageOk = false; // no storage — keep the in-memory cache only
+      }
+      if (raw) {
+        try {
+          var parsed = JSON.parse(raw);
+          ["foreColor", "hiliteColor"].forEach(function (prop) {
+            if (!parsed || !Array.isArray(parsed[prop])) return;
+            cache[prop] = parsed[prop].filter(function (e) {
+              return (
+                e &&
+                COLOR_HEX_RE.test(e.c) &&
+                typeof e.n === "number" &&
+                isFinite(e.n) &&
+                e.n > 0 &&
+                typeof e.t === "number" &&
+                isFinite(e.t)
+              );
+            });
+          });
+        } catch (e) {} // corrupted JSON — start from a clean cache
+      }
+      return cache;
+    }
+
+    function save() {
+      if (!storageOk) return;
+      try {
+        global.localStorage.setItem(COLOR_MEM_KEY, JSON.stringify(cache));
+      } catch (e) {
+        storageOk = false;
+      }
+    }
+
+    function record(prop, color) {
+      var c = String(color).toLowerCase();
+      if (!COLOR_HEX_RE.test(c)) return;
+
+      var list = load()[prop];
+      var entry = null;
+      for (var i = 0; i < list.length; i++) {
+        if (list[i].c === c) {
+          entry = list[i];
+          break;
+        }
+      }
+      if (entry) {
+        entry.n += 1;
+        entry.t = Date.now();
+      } else {
+        list.push({ c: c, n: 1, t: Date.now() });
+      }
+
+      // Keep the memory bounded: beyond the base palette only a handful
+      // of custom colors are kept, dropping the least used/oldest first.
+      var customs = list.filter(function (e) {
+        return !PALETTE_SET[e.c];
+      });
+      if (customs.length > MAX_CUSTOM_COLORS) {
+        customs.sort(function (a, b) {
+          return a.n - b.n || a.t - b.t;
+        });
+        var drop = {};
+        customs
+          .slice(0, customs.length - MAX_CUSTOM_COLORS)
+          .forEach(function (e) {
+            drop[e.c] = 1;
+          });
+        list = list.filter(function (e) {
+          return !drop[e.c];
+        });
+        cache[prop] = list;
+      }
+      save();
+    }
+
+    // Display order for a panel: used colors first — most used, then
+    // most recent — followed by the remaining base palette colors in
+    // their original order.
+    function order(prop) {
+      var used = load()
+        [prop].slice()
+        .sort(function (a, b) {
+          return b.n - a.n || b.t - a.t;
+        });
+      var seen = {};
+      var out = [];
+      used.forEach(function (e) {
+        seen[e.c] = 1;
+        out.push(e.c);
+      });
+      PALETTE.forEach(function (c) {
+        if (!seen[c]) out.push(c);
+      });
+      return out;
+    }
+
+    return { record: record, order: order };
+  })();
+
   // Label + input wrapper used by the modals.
   function field(labelText, input) {
     var wrap = document.createElement("div");
@@ -651,6 +859,37 @@
   function imgHTML(src, alt) {
     return (
       '<img src="' + escapeHtml(src) + '" alt="' + escapeHtml(alt || "") + '">'
+    );
+  }
+
+  // Context-menu input → CSS length: "320" → "320px", "100%" → "100%",
+  // "" / "auto" → null (remove the property), anything else → false.
+  function parseCssSize(raw) {
+    var v = String(raw == null ? "" : raw)
+      .trim()
+      .toLowerCase();
+    if (!v || v === "auto") return null;
+    var m = /^(\d+(?:\.\d+)?)(px|%)?$/.exec(v);
+    if (!m || Number(m[1]) === 0) return false;
+    return m[1] + (m[2] || "px");
+  }
+
+  // Inline style value → context-menu input value: "auto" becomes ""
+  // (the placeholder already says auto), anything else is kept as-is.
+  function imgSizeValue(v) {
+    v = String(v || "").trim();
+    return v === "auto" ? "" : v;
+  }
+
+  function anchorHTML(href, text, newTab) {
+    return (
+      '<a href="' +
+      escapeHtml(href) +
+      '"' +
+      (newTab ? ' target="_blank" rel="noopener noreferrer"' : "") +
+      ">" +
+      escapeHtml(text) +
+      "</a>"
     );
   }
 
@@ -695,6 +934,7 @@
     this._changePending = false;
     this._stateQueued = false;
     this._colorPanels = {};
+    this._imgMenu = null;
 
     var isTextarea = target.tagName === "TEXTAREA";
     this._textarea = isTextarea ? target : null;
@@ -807,6 +1047,12 @@
       this._listen(content, "mousedown", function (e) {
         self._onContentMousedown(e);
       });
+      this._listen(content, "contextmenu", function (e) {
+        self._onContextMenu(e);
+      });
+      this._listen(content, "dblclick", function (e) {
+        self._onImgDblclick(e);
+      });
       this._listen(content, "mouseleave", function () {
         self.content.style.cursor = "";
         self._clearColHint();
@@ -871,6 +1117,7 @@
         { sep: true },
         { act: "image", icon: "image", title: s.image },
         { act: "table", icon: "table", title: s.table },
+        { cmd: "insertHorizontalRule", icon: "hr", title: s.horizontalRule },
         { sep: true },
         { act: "source", icon: "code", title: s.source },
         { sep: true },
@@ -942,7 +1189,10 @@
       if (def.dd === "block") {
         this._togglePanel(this._getBlockPanel(), btn);
       } else if (def.dd === "color") {
-        this._togglePanel(this._getColorPanel(def.prop), btn);
+        // Rebuild the swatches on every open so they reflect usage.
+        var panel = this._getColorPanel(def.prop);
+        this._renderColorGrid(def.prop);
+        this._togglePanel(panel, btn);
       } else if (def.cmd) {
         this._exec(def.cmd);
       } else if (def.act === "link") {
@@ -967,6 +1217,7 @@
 
       [
         ["p", this.s.paragraph, ""],
+        ["h1", this.s.heading1, "se-opt-h1"],
         ["h2", this.s.heading2, "se-opt-h2"],
         ["h3", this.s.heading3, "se-opt-h3"],
         ["h4", this.s.heading4, "se-opt-h4"],
@@ -997,19 +1248,8 @@
 
       var grid = document.createElement("div");
       grid.className = "se-colors";
-      PALETTE.forEach(function (color) {
-        var b = document.createElement("button");
-        b.type = "button";
-        b.className = "se-swatch";
-        b.title = color;
-        b.style.background = color;
-        b.addEventListener("click", function () {
-          self._exec(prop, color);
-          self._closePanel();
-        });
-        grid.appendChild(b);
-      });
       panel.appendChild(grid);
+      panel._grid = grid;
 
       var custom = document.createElement("label");
       custom.className = "se-custom";
@@ -1021,6 +1261,7 @@
       custom.appendChild(picker);
       custom.appendChild(lbl);
       picker.addEventListener("change", function () {
+        colorMemory.record(prop, picker.value);
         self._exec(prop, picker.value);
         self._closePanel();
       });
@@ -1029,6 +1270,30 @@
       this.toolbar.appendChild(panel);
       this._colorPanels[prop] = panel;
       return panel;
+    },
+
+    // Rebuilds a color panel's swatches: remembered colors first (most
+    // used, then most recent), the untouched base palette after them.
+    // Called on every open so the order tracks actual usage.
+    _renderColorGrid: function (prop) {
+      var self = this;
+      var panel = this._colorPanels[prop];
+      if (!panel || !panel._grid) return;
+      var grid = panel._grid;
+      grid.innerHTML = "";
+      colorMemory.order(prop).forEach(function (color) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "se-swatch";
+        b.title = color;
+        b.style.background = color;
+        b.addEventListener("click", function () {
+          colorMemory.record(prop, color);
+          self._exec(prop, color);
+          self._closePanel();
+        });
+        grid.appendChild(b);
+      });
     },
 
     _togglePanel: function (panel, btn) {
@@ -1054,6 +1319,8 @@
     _onDocMousedown: function (e) {
       if (this._openPanel && !this.toolbar.contains(e.target))
         this._closePanel();
+      if (this._imgMenu && !this._imgMenu.el.contains(e.target))
+        this._closeImageMenu();
     },
 
     // ----------------------------------------------------------------
@@ -1126,7 +1393,7 @@
       } catch (e) {
         v = "";
       }
-      if (v === "h2" || v === "h3" || v === "h4") return v;
+      if (v === "h1" || v === "h2" || v === "h3" || v === "h4") return v;
       return "p";
     },
 
@@ -1188,6 +1455,7 @@
       var cur = this._currentBlock();
       var labels = {
         p: this.s.paragraph,
+        h1: this.s.heading1,
         h2: this.s.heading2,
         h3: this.s.heading3,
         h4: this.s.heading4,
@@ -1238,6 +1506,17 @@
         e.preventDefault();
         this._linkModal();
         return;
+      }
+      // Ctrl/Cmd+Alt+1..4 turn the current block into a heading, and
+      // Ctrl/Cmd+Alt+0 returns it to a paragraph (same convention as
+      // Google Docs / Word). Uses e.code so any keyboard layout works.
+      if (!this._sourceMode && (e.ctrlKey || e.metaKey) && e.altKey) {
+        var m = /^Digit([0-4])$/.exec(e.code || "");
+        if (m) {
+          e.preventDefault();
+          this._setBlock(["p", "h1", "h2", "h3", "h4"][Number(m[1])]);
+          return;
+        }
       }
       if (e.key === "Tab") this._onListTab(e);
     },
@@ -1519,8 +1798,248 @@
     },
 
     // ----------------------------------------------------------------
+    // Image context menu (right-click / double-click on an image)
+    // ----------------------------------------------------------------
+
+    _onContextMenu: function (e) {
+      if (this._destroyed || this._sourceMode) return;
+      var el = e.target;
+      var img = el && el.closest ? el.closest("img") : null;
+      if (!img || !this.content.contains(img)) {
+        this._closeImageMenu();
+        return;
+      }
+      e.preventDefault();
+      this._openImageMenu(img, e.clientX, e.clientY);
+    },
+
+    _onImgDblclick: function (e) {
+      if (this._destroyed || this._sourceMode) return;
+      var el = e.target;
+      var img = el && el.closest ? el.closest("img") : null;
+      if (!img || !this.content.contains(img)) return;
+      this._openImageMenu(img, e.clientX, e.clientY);
+    },
+
+    // Current alignment of an image, derived from its inline style:
+    // "left" | "right" | "center" | "inline".
+    _imgAlign: function (img) {
+      var st = img.style;
+      var float = st.getPropertyValue("float");
+      if (float === "left") return "left";
+      if (float === "right") return "right";
+      if (
+        st.getPropertyValue("display") === "block" &&
+        (st.getPropertyValue("margin-left") === "auto" ||
+          st.getPropertyValue("margin-right") === "auto")
+      ) {
+        return "center";
+      }
+      return "inline";
+    },
+
+    _setImgAlign: function (img, align) {
+      var st = img.style;
+      ["float", "display", "margin", "margin-left", "margin-right"].forEach(
+        function (p) {
+          st.removeProperty(p);
+        },
+      );
+      if (align === "left") {
+        st.setProperty("float", "left");
+        st.setProperty("margin", "0 1em 1em 0");
+      } else if (align === "right") {
+        st.setProperty("float", "right");
+        st.setProperty("margin", "0 0 1em 1em");
+      } else if (align === "center") {
+        st.setProperty("display", "block");
+        st.setProperty("margin-left", "auto");
+        st.setProperty("margin-right", "auto");
+      }
+    },
+
+    _setImgSize: function (img, w, h) {
+      var st = img.style;
+      st.removeProperty("width");
+      st.removeProperty("height");
+      if (w) st.setProperty("width", w);
+      if (h) st.setProperty("height", h);
+      // A width without an explicit height gets height: auto so the
+      // aspect ratio survives on pages that do not ship the editor CSS.
+      if (w && !h) st.setProperty("height", "auto");
+    },
+
+    _openImageMenu: function (img, x, y) {
+      var s = this.s;
+      var self = this;
+      this._closeImageMenu();
+      if (!img.parentNode || !this.content.contains(img)) return;
+
+      function alive() {
+        return !!(img.parentNode && self.content.contains(img));
+      }
+
+      var menu = document.createElement("div");
+      menu.className = "se-ctxmenu";
+      menu.setAttribute("role", "dialog");
+      menu.setAttribute("aria-label", s.imageProps);
+      this._copyThemeVars(menu);
+
+      var wInput = document.createElement("input");
+      wInput.type = "text";
+      wInput.placeholder = "auto";
+      wInput.value = imgSizeValue(img.style.getPropertyValue("width"));
+
+      var hInput = document.createElement("input");
+      hInput.type = "text";
+      hInput.placeholder = "auto";
+      hInput.value = imgSizeValue(img.style.getPropertyValue("height"));
+
+      var err = document.createElement("p");
+      err.className = "se-error";
+
+      var hint = document.createElement("p");
+      hint.className = "se-hint";
+      hint.textContent = s.imageSizeHint;
+
+      var applyBtn = document.createElement("button");
+      applyBtn.type = "button";
+      applyBtn.className = "se-btn-primary se-ctx-apply";
+      applyBtn.textContent = s.apply;
+
+      var alignRow = document.createElement("div");
+      alignRow.className = "se-align-row";
+      var alignBtns = {};
+
+      function refreshAlign() {
+        var cur = self._imgAlign(img);
+        Object.keys(alignBtns).forEach(function (k) {
+          alignBtns[k].classList.toggle("se-active", k === cur);
+        });
+      }
+
+      [
+        ["left", "imgLeft", s.alignLeft],
+        ["center", "imgCenter", s.alignCenter],
+        ["right", "imgRight", s.alignRight],
+        ["inline", "imgInline", s.alignInline],
+      ].forEach(function (o) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "se-btn";
+        b.title = o[2];
+        b.setAttribute("aria-label", o[2]);
+        b.innerHTML = ICONS[o[1]];
+        b.addEventListener("click", function () {
+          if (!alive()) {
+            close();
+            return;
+          }
+          self._setImgAlign(img, o[0]);
+          refreshAlign();
+          self._emitChange();
+        });
+        alignBtns[o[0]] = b;
+        alignRow.appendChild(b);
+      });
+
+      var sizeRow = document.createElement("div");
+      sizeRow.className = "se-row";
+      sizeRow.appendChild(field(s.imageWidth, wInput));
+      sizeRow.appendChild(field(s.imageHeight, hInput));
+
+      var sep = document.createElement("div");
+      sep.className = "se-ctx-sep";
+
+      menu.appendChild(sizeRow);
+      menu.appendChild(hint);
+      menu.appendChild(err);
+      menu.appendChild(applyBtn);
+      menu.appendChild(sep);
+      menu.appendChild(alignRow);
+      document.body.appendChild(menu);
+
+      // Clamp the menu into the viewport.
+      var left = Math.max(
+        8,
+        Math.min(x, window.innerWidth - menu.offsetWidth - 8),
+      );
+      var top = Math.max(
+        8,
+        Math.min(y, window.innerHeight - menu.offsetHeight - 8),
+      );
+      menu.style.left = left + "px";
+      menu.style.top = top + "px";
+
+      function close() {
+        if (!menu.parentNode) return;
+        menu.parentNode.removeChild(menu);
+        document.removeEventListener("keydown", onKey);
+        window.removeEventListener("scroll", onScroll, true);
+        self._imgMenu = null;
+      }
+      function onKey(e) {
+        if (e.key === "Escape") {
+          e.stopPropagation();
+          close();
+        }
+      }
+      function onScroll() {
+        close();
+      }
+      document.addEventListener("keydown", onKey);
+      window.addEventListener("scroll", onScroll, true);
+
+      function apply() {
+        if (!alive()) {
+          close();
+          return;
+        }
+        var w = parseCssSize(wInput.value);
+        var h = parseCssSize(hInput.value);
+        if (w === false || h === false) {
+          err.textContent = s.invalidSize;
+          (w === false ? wInput : hInput).focus();
+          return;
+        }
+        close();
+        self._setImgSize(img, w, h);
+        self._emitChange();
+      }
+      applyBtn.addEventListener("click", apply);
+      [wInput, hInput].forEach(function (inp) {
+        inp.addEventListener("keydown", function (e) {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            apply();
+          }
+        });
+      });
+
+      refreshAlign();
+      this._imgMenu = { el: menu, close: close };
+      wInput.focus();
+      wInput.select();
+    },
+
+    _closeImageMenu: function () {
+      if (this._imgMenu) this._imgMenu.close();
+    },
+
+    // ----------------------------------------------------------------
     // Modals
     // ----------------------------------------------------------------
+
+    // Body-level popups (modals, the image menu) sit outside .se-root
+    // and cannot inherit its custom properties — copy the computed theme
+    // onto them so per-instance theming still applies.
+    _copyThemeVars: function (el) {
+      var rootStyle = window.getComputedStyle(this.root);
+      CSS_VARS.forEach(function (name) {
+        var value = rootStyle.getPropertyValue(name);
+        if (value) el.style.setProperty(name, value);
+      });
+    },
 
     _openModal: function (opts) {
       var self = this;
@@ -1529,15 +2048,7 @@
 
       var overlay = document.createElement("div");
       overlay.className = "se-overlay";
-
-      // The modal is mounted on <body>, outside .se-root — copy the
-      // editor's current theme values so per-instance theming (variables
-      // overridden on the root element or via a class) still applies.
-      var rootStyle = window.getComputedStyle(this.root);
-      CSS_VARS.forEach(function (name) {
-        var value = rootStyle.getPropertyValue(name);
-        if (value) overlay.style.setProperty(name, value);
-      });
+      this._copyThemeVars(overlay);
 
       var form = document.createElement("form");
       form.className = "se-modal";
@@ -1627,6 +2138,8 @@
       var textInput = document.createElement("input");
       textInput.type = "text";
       textInput.value = selText;
+      // Kept to detect whether the user left the prefilled text alone.
+      var initialText = textInput.value;
 
       var newTab = document.createElement("input");
       newTab.type = "checkbox";
@@ -1658,20 +2171,83 @@
             return;
           }
           var text = textInput.value.trim() || safe;
-          var html =
-            '<a href="' +
-            escapeHtml(safe) +
-            '"' +
-            (newTab.checked
-              ? ' target="_blank" rel="noopener noreferrer"'
-              : "") +
-            ">" +
-            escapeHtml(text) +
-            "</a>";
+          // Left untouched with a non-empty selection: link the selection
+          // in place via createLink so formatting on it (bold, underline,
+          // colors, ...) survives. Changing the text replaces the
+          // selection with a fresh plain link instead.
+          var unchanged = textInput.value === initialText;
           close();
-          self._exec("insertHTML", html);
+          if (unchanged && selText.trim()) {
+            self._linkSelection(safe, newTab.checked, selText);
+          } else {
+            self._exec("insertHTML", anchorHTML(safe, text, newTab.checked));
+          }
         },
       });
+    },
+
+    // Links the saved selection in place with the native createLink
+    // command — unlike insertHTML it wraps the existing nodes instead of
+    // replacing them with plain text, so formatting on the selected text
+    // (bold, underline, colors, ...) is kept and partial selections are
+    // split correctly. Falls back to a plain-text link if the engine
+    // refuses the command.
+    _linkSelection: function (url, newTab, fallbackText) {
+      if (this._destroyed) return;
+      this.content.focus();
+      if (this._savedRange) this._restoreRange();
+
+      var ok = false;
+      try {
+        ok = document.execCommand("createLink", false, url);
+      } catch (e) {
+        ok = false;
+      }
+
+      if (!ok) {
+        this._exec("insertHTML", anchorHTML(url, fallbackText, newTab));
+        return;
+      }
+
+      // createLink cannot set target/rel — patch it onto the anchors the
+      // fresh selection covers.
+      if (newTab) this._markLinksInSelection();
+
+      this._savedRange = null;
+      this._updateToolbar();
+      this._updatePlaceholder();
+      this._emitChange();
+    },
+
+    // Sets target="_blank" + rel on every anchor the current selection
+    // touches (handles multi-block selections, where createLink produces
+    // one anchor per block).
+    _markLinksInSelection: function () {
+      var sel = window.getSelection();
+      if (!sel) return;
+      var range = sel.rangeCount ? sel.getRangeAt(0) : null;
+      var closestA = function (node) {
+        var el = node ? (node.nodeType === 1 ? node : node.parentNode) : null;
+        return el && el.closest ? el.closest("a") : null;
+      };
+      var edge = [closestA(sel.anchorNode), closestA(sel.focusNode)];
+      Array.prototype.forEach.call(
+        this.content.querySelectorAll("a"),
+        function (a) {
+          var hit = edge.indexOf(a) !== -1;
+          if (!hit && range) {
+            try {
+              hit = range.intersectsNode(a);
+            } catch (e) {
+              hit = false;
+            }
+          }
+          if (hit) {
+            a.setAttribute("target", "_blank");
+            a.setAttribute("rel", "noopener noreferrer");
+          }
+        },
+      );
     },
 
     _imageModal: function () {
@@ -1863,6 +2439,7 @@
       if (next === this._sourceMode) return;
       this._cancelColDrag();
       this._clearColHint();
+      this._closeImageMenu();
       this._sourceMode = next;
       this.root.classList.toggle("se-source-mode", next);
       this.content.hidden = next;
@@ -1979,6 +2556,7 @@
       this._closePanel();
       this._cancelColDrag();
       this._clearColHint();
+      this._closeImageMenu();
       if (this._modal) this._modal.close();
 
       var html = this.getHTML();
