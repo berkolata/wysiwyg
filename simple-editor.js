@@ -21,7 +21,7 @@
 (function (global) {
   "use strict";
 
-  var VERSION = "1.0.2";
+  var VERSION = "1.0.3";
 
   // Custom properties that must be copied from the editor root onto
   // body-level modals — they are mounted outside .se-root and therefore
@@ -52,6 +52,8 @@
       bold: "Bold (Ctrl+B)",
       italic: "Italic (Ctrl+I)",
       underline: "Underline (Ctrl+U)",
+      listBullets: "Bulleted list",
+      listNumbers: "Numbered list",
       textColor: "Text color",
       bgColor: "Background color",
       customColor: "Custom…",
@@ -92,6 +94,8 @@
       bold: "Kalın (Ctrl+B)",
       italic: "İtalik (Ctrl+I)",
       underline: "Altı çizili (Ctrl+U)",
+      listBullets: "Madde işaretli liste",
+      listNumbers: "Numaralı liste",
       textColor: "Yazı rengi",
       bgColor: "Arka plan rengi",
       customColor: "Özel…",
@@ -565,6 +569,16 @@
         '<path d="M5.17 11.75l-1.72 1.71a5 5 0 0 0 7.07 7.07l1.71-1.71"/>' +
         '<line x1="8.59" y1="8.59" x2="15.41" y2="15.41"/>',
     ),
+    listUl: svg(
+      '<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>' +
+        '<line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/>' +
+        '<line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',
+    ),
+    listOl: svg(
+      '<line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/>' +
+        '<line x1="10" y1="18" x2="21" y2="18"/><path d="M4 6h1v4"/><path d="M4 10h2"/>' +
+        '<path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/>',
+    ),
     image: svg(
       '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>' +
         '<circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>',
@@ -840,6 +854,9 @@
           html: '<span class="se-glyph se-glyph-u">U</span>',
           title: s.underline,
         },
+        { sep: true },
+        { cmd: "insertUnorderedList", icon: "listUl", title: s.listBullets },
+        { cmd: "insertOrderedList", icon: "listOl", title: s.listNumbers },
         { sep: true },
         {
           dd: "color",
@@ -1152,7 +1169,9 @@
         if (
           def.cmd === "bold" ||
           def.cmd === "italic" ||
-          def.cmd === "underline"
+          def.cmd === "underline" ||
+          def.cmd === "insertUnorderedList" ||
+          def.cmd === "insertOrderedList"
         ) {
           var active = false;
           if (!self._sourceMode) {
@@ -1218,7 +1237,23 @@
       if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) {
         e.preventDefault();
         this._linkModal();
+        return;
       }
+      if (e.key === "Tab") this._onListTab(e);
+    },
+
+    // Tab / Shift+Tab inside a list indents / outdents the current item,
+    // producing nested <ul>/<ol> structures. Outside a list, Tab keeps
+    // its default focus behaviour.
+    _onListTab: function (e) {
+      if (this._sourceMode) return;
+      var sel = window.getSelection();
+      var node = sel && sel.anchorNode;
+      var el = node ? (node.nodeType === 1 ? node : node.parentNode) : null;
+      var li = el && el.closest ? el.closest("li") : null;
+      if (!li || !this.content.contains(li)) return;
+      e.preventDefault();
+      this._exec(e.shiftKey ? "outdent" : "indent");
     },
 
     // ----------------------------------------------------------------
