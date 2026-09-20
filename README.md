@@ -1,4 +1,4 @@
-# Simple Editor
+# Simple Editor - WYSIWYG Simple-Editor Free Unlimited
 
 A tiny, dependency-free WYSIWYG HTML editor for the web.
 
@@ -15,6 +15,7 @@ Built for the case where TinyMCE/CKEditor is overkill: admin panels, CMS content
 
 - Headings (H2/H3/H4) and paragraph format, with toggle-back
 - Bold, italic, underline
+- Bulleted and numbered lists, with Tab / Shift+Tab nesting
 - Text color and background color (palette + custom picker)
 - Links (insert, edit text, open-in-new-tab, remove) with URL validation
 - Images via URL, file upload, paste, or drag-and-drop
@@ -30,7 +31,7 @@ Built for the case where TinyMCE/CKEditor is overkill: admin panels, CMS content
 ## Quick start
 
 ```html
-<link rel="stylesheet" href="simple-editor.css">
+<link rel="stylesheet" href="simple-editor.css" />
 
 <textarea name="content" id="content">
   <h2>Hello world</h2>
@@ -59,12 +60,12 @@ The target can also be any block element (`div` works fine); then use `editor.ge
 
 ```js
 SimpleEditor.create(target, {
-  language: "en",            // "en" or "tr" — UI strings
-  placeholder: "",           // placeholder text (defaults to the prompt string)
-  content: null,             // initial HTML; defaults to the target's value/innerHTML
-  uploadUrl: null,           // POST endpoint for image uploads (see "Images")
-  maxHeight: 0,              // max editing-area height in px (0 = default 60vh)
-  strings: {}                // per-instance string overrides (see "Translations")
+  language: "en", // "en" or "tr" — UI strings
+  placeholder: "", // placeholder text (defaults to the prompt string)
+  content: null, // initial HTML; defaults to the target's value/innerHTML
+  uploadUrl: null, // POST endpoint for image uploads (see "Images")
+  maxHeight: 0, // max editing-area height in px (0 = default 60vh)
+  strings: {}, // per-instance string overrides (see "Translations")
 });
 ```
 
@@ -72,30 +73,31 @@ SimpleEditor.create(target, {
 
 ### Instance methods
 
-| Method | Description |
-| --- | --- |
-| `editor.getHTML()` | Returns the current content as sanitized, normalized HTML. Never returns unsanitized markup. |
+| Method                        | Description                                                                                                                                                    |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `editor.getHTML()`            | Returns the current content as sanitized, normalized HTML. Never returns unsanitized markup.                                                                   |
 | `editor.setHTML(html, opts?)` | Replaces the content. `opts.silent: true` skips change events; `opts.preserveUndo: true` routes the change through the native undo stack so Ctrl+Z reverts it. |
-| `editor.onChange(cb)` | Registers `cb(html, editor)` — fired (batched per frame) on typing, commands, paste, drop, source-apply, and setHTML. |
-| `editor.focus()` | Focuses the editing area (or the source textarea in source mode). |
-| `editor.destroy()` | Removes the editor, restores the original `<textarea>`/element with the current content, and detaches all listeners. |
+| `editor.onChange(cb)`         | Registers `cb(html, editor)` — fired (batched per frame) on typing, commands, paste, drop, source-apply, and setHTML.                                          |
+| `editor.focus()`              | Focuses the editing area (or the source textarea in source mode).                                                                                              |
+| `editor.destroy()`            | Removes the editor, restores the original `<textarea>`/element with the current content, and detaches all listeners.                                           |
 
 ### Statics
 
-| Property | Description |
-| --- | --- |
-| `SimpleEditor.create(target, options)` | Creates and returns an editor instance. |
-| `SimpleEditor.sanitize(html)` | Standalone access to the sanitizer/normalizer — useful for cleaning input on the server-side-rendered side of your app. |
-| `SimpleEditor.strings` | The built-in translation dictionaries (`en`, `tr`). |
-| `SimpleEditor.version` | Current version string. |
+| Property                               | Description                                                                                                             |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `SimpleEditor.create(target, options)` | Creates and returns an editor instance.                                                                                 |
+| `SimpleEditor.sanitize(html)`          | Standalone access to the sanitizer/normalizer — useful for cleaning input on the server-side-rendered side of your app. |
+| `SimpleEditor.strings`                 | The built-in translation dictionaries (`en`, `tr`).                                                                     |
+| `SimpleEditor.version`                 | Current version string.                                                                                                 |
 
 ### Keyboard shortcuts
 
-| Keys | Action |
-| --- | --- |
-| Ctrl/⌘ + B / I / U | Bold / italic / underline |
-| Ctrl/⌘ + K | Insert link |
-| Ctrl/⌘ + Z / Y | Undo / redo |
+| Keys                            | Action                                       |
+| ------------------------------- | -------------------------------------------- |
+| Ctrl/⌘ + B / I / U              | Bold / italic / underline                    |
+| Ctrl/⌘ + K                      | Insert link                                  |
+| Tab / Shift+Tab (inside a list) | Indent / outdent the list item (nests lists) |
+| Ctrl/⌘ + Z / Y                  | Undo / redo                                  |
 
 ## Tables
 
@@ -105,10 +107,12 @@ SimpleEditor.create(target, {
 ```html
 <table>
   <colgroup>
-    <col style="width: 62.5%">
-    <col style="width: 37.5%">
+    <col style="width: 62.5%" />
+    <col style="width: 37.5%" />
   </colgroup>
-  <tbody>...</tbody>
+  <tbody>
+    ...
+  </tbody>
 </table>
 ```
 
@@ -116,12 +120,26 @@ SimpleEditor.create(target, {
 - Saved content needs the same rules on your site. The demo ships this copy-paste block for your page templates:
 
 ```css
-.content table { width: 100%; table-layout: fixed; border-collapse: collapse; }
-.content td, .content th { border: 1px solid #d1d5db; padding: 6px 10px; overflow-wrap: break-word; }
-.content th { background: #f9fafb; }
+.content table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+.content td,
+.content th {
+  border: 1px solid #d1d5db;
+  padding: 6px 10px;
+  overflow-wrap: break-word;
+}
+.content th {
+  background: #f9fafb;
+}
 
 @media (max-width: 640px) {
-  .content td, .content th { padding: 4px 6px; }
+  .content td,
+  .content th {
+    padding: 4px 6px;
+  }
 }
 ```
 
@@ -178,7 +196,7 @@ Everything that enters the editor — `setHTML()`, paste, drop, source-view appl
 
 1. **Parse** in an inert `<template>` (scripts never run, images never load during parsing).
 2. **Normalize** legacy browser output: `<font color>` → `<span style="color:">`, `<b>`/`<i>`/`<strike>` → `<strong>`/`<em>`/`<s>`, empty spans unwrapped.
-3. **Drop** dangerous elements *with* content: `script`, `style`, `iframe`, `object`, `embed`, `form`, `svg`, `meta`, `link`, ...
+3. **Drop** dangerous elements _with_ content: `script`, `style`, `iframe`, `object`, `embed`, `form`, `svg`, `meta`, `link`, ...
 4. **Unwrap** unknown-but-harmless elements (tag removed, children kept).
 5. **Filter attributes** to a per-tag allowlist, and validate the survivors:
    - `href`/`src`: only `http`, `https`, `mailto`, `tel`, relative URLs, and (for images) the image `data:` formats above — `javascript:` URLs are removed.
@@ -204,15 +222,15 @@ All colors are CSS variables declared on `.se-root` (and `.se-overlay`, since mo
 
 ```css
 .se-root {
-  --se-border: #d1d5db;        /* main borders */
-  --se-border-soft: #e5e7eb;   /* dividers, panel borders */
-  --se-bg: #ffffff;            /* surfaces */
-  --se-bg-soft: #f9fafb;       /* toolbar, modal footer */
-  --se-fg: #111827;            /* text */
-  --se-fg-muted: #6b7280;      /* hints, placeholders */
-  --se-accent: #2563eb;        /* buttons, focus, links */
-  --se-accent-soft: #dbeafe;   /* active button background */
-  --se-danger: #dc2626;        /* error text */
+  --se-border: #d1d5db; /* main borders */
+  --se-border-soft: #e5e7eb; /* dividers, panel borders */
+  --se-bg: #ffffff; /* surfaces */
+  --se-bg-soft: #f9fafb; /* toolbar, modal footer */
+  --se-fg: #111827; /* text */
+  --se-fg-muted: #6b7280; /* hints, placeholders */
+  --se-accent: #2563eb; /* buttons, focus, links */
+  --se-accent-soft: #dbeafe; /* active button background */
+  --se-danger: #dc2626; /* error text */
 }
 ```
 
@@ -236,7 +254,7 @@ SimpleEditor.create("#content", {
 
 If you want to hack on it, the mental model in ~2,000 lines of vanilla JS:
 
-- **Editing core** — a `contenteditable` div driven by `document.execCommand()`. `execCommand` is officially deprecated but universally implemented and perfectly adequate for this feature set; the real work is everything *around* it.
+- **Editing core** — a `contenteditable` div driven by `document.execCommand()`. `execCommand` is officially deprecated but universally implemented and perfectly adequate for this feature set; the real work is everything _around_ it.
 - **Selection preservation** — toolbar buttons `preventDefault()` on `mousedown` so focus never leaves the editing area; modals save the DOM range on open and restore it before applying. This is the #1 homemade-editor bug and the reason toolbar clicks just work here.
 - **Undo coherence** — every programmatic change (links, tables, images, pastes, `setHTML({preserveUndo:true})`) goes through `execCommand("insertHTML")` instead of direct DOM mutation, so the browser's native undo stack stays consistent. Direct mutations (column resizing) are the known exception.
 - **Sanitizer** — a single `cleanTree()` pass (normalize → drop → unwrap → attribute filter) reused by every input and output path, including the standalone `SimpleEditor.sanitize()`.
