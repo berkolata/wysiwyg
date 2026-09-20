@@ -7,11 +7,13 @@
 /* Root / shell                                                        */
 /* ------------------------------------------------------------------ */
 
-/* Variables live on .se-root AND .se-overlay: the modal overlay is
-   mounted on <body> — outside the editor — so it cannot inherit the
-   editor's custom properties on its own. */
+/* Variables live on .se-root, .se-overlay and .se-ctxmenu: the modal
+   overlay and the image context menu are mounted on <body> — outside the
+   editor — so they cannot inherit the editor's custom properties on
+   their own. */
 .se-root,
-.se-overlay {
+.se-overlay,
+.se-ctxmenu {
   --se-border: #d1d5db;
   --se-border-soft: #e5e7eb;
   --se-bg: #ffffff;
@@ -170,6 +172,10 @@
   background: var(--se-accent-soft);
   color: #1d4ed8;
 }
+.se-opt-h1 {
+  font-size: 17px;
+  font-weight: 700;
+}
 .se-opt-h2 {
   font-size: 16px;
   font-weight: 700;
@@ -260,6 +266,12 @@
 }
 
 /* Typography inside the edited document */
+.se-content h1 {
+  font-size: 1.75em;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0.8em 0 0.4em;
+}
 .se-content h2 {
   font-size: 1.5em;
   font-weight: 700;
@@ -278,6 +290,7 @@
   line-height: 1.3;
   margin: 0.8em 0 0.4em;
 }
+.se-content h1:first-child,
 .se-content h2:first-child,
 .se-content h3:first-child,
 .se-content h4:first-child {
@@ -295,7 +308,33 @@
   margin: 0 0 0.75em;
   padding-left: 1.6em;
 }
+
+/* List markers are declared explicitly: the editor sits directly in the
+   host page's DOM, so a site-wide CSS reset (Tailwind preflight,
+   sanitize.css, Meyer reset, ... all set `ol, ul { list-style: none }`)
+   would otherwise hide bullets and numbers inside the editing area.
+   Nested levels follow the browser defaults: disc → circle → square. */
+.se-content ul {
+  list-style-type: disc;
+}
+.se-content ol {
+  list-style-type: decimal;
+}
+.se-content ul ul,
+.se-content ol ul {
+  list-style-type: circle;
+}
+.se-content ol ol ul,
+.se-content ol ul ul,
+.se-content ul ol ul,
+.se-content ul ul ul {
+  list-style-type: square;
+}
+
+/* display: list-item restores the marker box if a reset turned <li>
+   into a plain block. */
 .se-content li {
+  display: list-item;
   margin: 0.15em 0;
 }
 
@@ -600,4 +639,44 @@
 }
 .se-file input[type="file"] {
   display: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Image context menu (right-click / double-click on an image)         */
+/* ------------------------------------------------------------------ */
+
+/* Shares the shell + variable block with .se-root / .se-overlay above
+   (border, radius, background, flex column). */
+.se-ctxmenu {
+  position: fixed;
+  z-index: 10000;
+  min-width: 250px;
+  padding: 10px;
+  gap: 8px;
+  box-shadow: 0 10px 25px rgba(17, 24, 39, 0.14);
+}
+
+/* The error line only takes up space once there is something to show. */
+.se-ctxmenu .se-error:empty {
+  display: none;
+}
+
+.se-ctx-sep {
+  height: 1px;
+  background: var(--se-border-soft);
+  margin: 2px 0;
+}
+
+.se-align-row {
+  display: flex;
+  gap: 2px;
+}
+
+.se-align-row .se-btn {
+  flex: 1;
+  height: 32px;
+}
+
+.se-ctx-apply {
+  width: 100%;
 }
